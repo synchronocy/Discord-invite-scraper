@@ -3,19 +3,12 @@
 # Date: 02-08-18, Feb ~ 8th 2018 | Synchronocy
 # Project: Discordhub.com Scraper
 # Lul I bombed their discord
-
 import requests
-import string
-import sys
-#from pasteee import *
 from threading import Thread
 from queue import Queue
 
-discord = 'http://discordhub.com'
-discordservers = 'https://discordhub.com/servers/list?page='
-httptag = 'https'
-filename = 'discordlinks.txt'
-
+discordhub = 'https://discordhub.com/'
+pool = []
 class Worker(Thread):
     """
     Pooling
@@ -65,50 +58,23 @@ class ThreadPool:
         Await completions
         """
         self.tasks.join()
-
-def removedupes(inputfile, outputfile):
-        lines=open(inputfile, 'r').readlines()
-        lines_set = set(lines)
-        out=open(outputfile, 'w')
-        for line in lines_set:
-                out.write(line)
-        print('\nScan completed.\nRemoved any/all dupes.')
-page = 1
-
-def resolver(flink):
-    r = requests.get(flink)
-    resa = r.url
-    resb = resa.replace("discordapp.com/invite","discord.gg")
-    resb = resb + '\n'
-    if 'https://discord.gg/' in resb:
-        #print(resb)
-        with open("discordlinks.txt","a") as handle:
-            handle.write(resb)
-            handle.close()
-    else:
-        pass
-        
-def backend(page):
-    pool = ThreadPool(500)
-    src = requests.get(discordservers + page).text
+def scrape(counter):
+    src = requests.get('https://discordhub.com/servers/list?page='+str(counter)).text
     links = src.split('<a href="')
     for link in links:
-        link = link.split('"')[0].replace("/show","\n")
-        flink = discord+link
-        flink.replace("javascript:void(0);","").replace("https://discordhub.com/servers/list","")
-        if 'http://discordhub.com/servers/' and '/invite/' in flink:
-            pool.add_task(resolver,flink)
-
+        if 'invite' in link:
+            discord = requests.get(discordhub+link[:34])
+            url = discord.url
+            url = 'https://discord.gg/'+url[30:]
+            print(url)
+            with open('links.txt','a') as handle:
+                handle.write(url+'\n')
 def main():
-    pool = ThreadPool(500)
-    amt = input("Page count: ")
-    for x in range(1,int(amt)):
-        backend(str(x))
-    removedupes(filename,filename)
+    pool = ThreadPool(800)# be careful with this as it can actually rape your pc
+    counter = 0
+    for x in range(50): # in pages
+        counter += 1
+        pool.add_task(scrape,counter)
     pool.wait_completion()
-    print("[+] Your list of discord links are located at: \nnote discord links may still be saving to the document.")
-    print(filename)
     
-if __name__ == '__main__':
-    main()
-    sys.exit()
+main()
